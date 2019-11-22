@@ -57,6 +57,7 @@ func ListenClient(conn net.Conn) {
 
 			path := getPath(url)
 			if &path != nil {
+				musicCh <- strings.SplitAfter(path, "\\.")[0] + ".mp3"
 				/*if musicCh <-strings.SplitAfter(path,"\\.")[0]+".mp3" {
 					_, _ = conn.Write([]byte("Added of Queue."))
 				}else {
@@ -70,8 +71,9 @@ func ListenClient(conn net.Conn) {
 				cmd := "ffmpeg -i \"" + path + "\" \"" + strings.Split(path, "\\.")[0] + ".mp3\""
 				p2 := exec.Command(cmd)
 				_ = p2.Wait()
-				/*paths := strings.Split(path,"\\.")[0]+".mp3"
-				if musicCh <- paths {
+				paths := strings.Split(path, "\\.")[0] + ".mp3"
+				musicCh <- paths
+				/* if musicCh <- paths {
 					_, _ = conn.Write([]byte("Added of Queue."))
 				}else {
 					_, _ = conn.Write([]byte("Queue is full."))

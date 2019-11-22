@@ -29,6 +29,7 @@ func main() {
 		if err != nil {
 			continue
 		}
+		fmt.Println("Accept client")
 		go ListenClient(conn)
 	}
 }
@@ -42,13 +43,15 @@ func ListenClient(conn net.Conn) {
 		fmt.Println("Dial error2:", err)
 	}
 	for {
+		_, _ = conn.Write(messageBuf)
 		line = string(messageLen)
+		fmt.Println(line)
 		if line == "/bye" {
 			break
 		}
 
 		if strings.HasPrefix(line, "/play") {
-			var url = strings.Split(line, " ")[1]
+			var url = strings.SplitAfter(line, " ")[1]
 			fmt.Println(url)
 
 			message := string(messageBuf[:messageLen])
@@ -65,10 +68,12 @@ func ListenClient(conn net.Conn) {
 				} */
 			} else {
 				var p = exec.Command("python " + "C:/Users/626ca/PycharmProjects/tubedoeloader/download.py " + url)
+				fmt.Println("now downloading...")
 				_ = p.Wait()
+				fmt.Println("download completed")
 
 				path = getPath(url)
-				cmd := "ffmpeg -i \"" + path + "\" \"" + strings.Split(path, "\\.")[0] + ".mp3\""
+				cmd := "ffmpeg -i \"" + path + "\" \"" + strings.SplitAfter(path, "\\.")[0] + ".mp3\""
 				p2 := exec.Command(cmd)
 				_ = p2.Wait()
 				paths := strings.Split(path, "\\.")[0] + ".mp3"

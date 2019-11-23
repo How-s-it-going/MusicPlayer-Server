@@ -42,12 +42,12 @@ func ListenClient(conn net.Conn) {
 	if err != nil {
 		fmt.Println("Dial error2:", err)
 	}
+	line = string(messageBuf[:messageLen])
 	for {
 		_, _ = conn.Write(messageBuf)
-		line = string(messageLen)
 		fmt.Println(line)
-		if line == "/bye" {
-			break
+		if strings.HasPrefix(line, "/bye") {
+			return
 		}
 
 		if strings.HasPrefix(line, "/play") {

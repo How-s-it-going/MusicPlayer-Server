@@ -12,6 +12,7 @@ var musicCh = make(chan string)
 var links = "C:/Users/626ca/IdeaProjects/SocketChat/src/spea55/links.txt"
 
 func main() {
+
 	port := ":28923"
 	Addr, err1 := net.ResolveTCPAddr("tcp", port)
 	if err1 != nil {
@@ -66,8 +67,9 @@ func ListenClient(conn net.Conn) {
 					_, _ = conn.Write([]byte("Queue is full."))
 				} */
 			} else {
+				var p = exec.Command("python " + "C:/Users/626ca/PycharmProjects/tubedoeloader/download.py " + url)
 				fmt.Println("now downloading...")
-				var _ = exec.Command("python " + "C:/Users/626ca/PycharmProjects/tubedoeloader/download.py " + url).Run()
+				_ = p.Wait()
 				fmt.Println("download completed")
 
 				path = getPath(url)
@@ -87,19 +89,18 @@ func ListenClient(conn net.Conn) {
 }
 
 func getPath(url string) (str string) {
-	var line, err1 = os.OpenFile(links, os.O_RDWR|os.O_APPEND, 0666)
+	var line, err1 = os.Open(links)
 	if err1 != nil {
 		fmt.Println("Dial error3:", err1)
 	}
-	var buf = make([]byte, 1024)
-	var lines, err2 = line.Read(buf)
+	var lines, err2 = line.Read([]byte(links))
 	if err2 != nil {
 		fmt.Println("Dial error4:", err2)
 	}
 	var path string
 	defer line.Close()
 	for {
-		tmp := strings.SplitAfter(string(lines), "&,")[0]
+		tmp := strings.Split(string(lines), "&,")[0]
 		if tmp == url {
 			fmt.Println("hit.")
 			path = strings.Split(links, ",")[1]
@@ -113,9 +114,7 @@ func getPath(url string) (str string) {
 func PlayMusicLoop() {
 	for {
 		path := <-musicCh
-		if _, err := os.Stat(links); os.IsNotExist(err) {
-			_, _ = os.OpenFile(links, os.O_RDWR|os.O_CREATE, 0666)
-		}
+		_, _ = os.OpenFile(links, os.O_RDWR|os.O_CREATE, 0666)
 		PlayMusicPyWrapper(strings.Split(path, "\\.")[0] + ".mp3")
 	}
 }

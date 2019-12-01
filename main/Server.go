@@ -44,14 +44,14 @@ func ListenClient(conn net.Conn) {
 	defer conn.Close()
 	var line string
 	messageBuf := make([]byte, 1024)
-	messageLen, err := conn.Read(messageBuf)
-	if err != nil {
-		fmt.Println("Dial error2:", err)
-		panic(err)
-	}
-	line = string(messageBuf[:messageLen])
-	fmt.Println(line)
 	for {
+		messageLen, err := conn.Read(messageBuf)
+		if err != nil {
+			fmt.Println("Dial error2:", err)
+			panic(err)
+		}
+		line = string(messageBuf[:messageLen])
+		fmt.Println(line)
 		_, _ = conn.Write(messageBuf)
 		if strings.HasPrefix(line, "/bye") {
 			return

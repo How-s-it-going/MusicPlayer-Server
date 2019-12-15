@@ -27,7 +27,7 @@ func main() {
 	}
 	fmt.Println("クライアントからの入力待ち")
 	if _, err := os.Stat(links); os.IsNotExist(err) {
-		_, _ = os.OpenFile(links, os.O_CREATE, 0666)
+		_, _ = os.OpenFile(links, os.O_CREATE|os.O_APPEND, 0666)
 	}
 	go PlayMusicLoop()
 	for {
@@ -51,14 +51,16 @@ func ListenClient(conn net.Conn) {
 			panic(err)
 		}
 		line = string(messageBuf[:messageLen])
-		fmt.Println(line)
+		line1 := strings.Replace(line, "\n", "", -1)
+		line1 = strings.Replace(line1, "\r", "", -1)
+		fmt.Println(line1)
 		_, _ = conn.Write(messageBuf)
-		if strings.HasPrefix(line, "/bye") {
+		if strings.HasPrefix(line1, "/bye") {
 			return
 		}
 
-		if strings.HasPrefix(line, "/play") {
-			var url = strings.SplitAfter(line, " ")[1]
+		if strings.HasPrefix(line1, "/play") {
+			var url = strings.Split(line1, " ")[1]
 			fmt.Println(url)
 
 			message := string(messageBuf[:messageLen])
@@ -66,24 +68,31 @@ func ListenClient(conn net.Conn) {
 			_, _ = conn.Write([]byte(message))
 
 			path := getPath(url)
-			if &path != nil {
-				musicCh <- strings.SplitAfter(path, "\\.")[0] + ".mp3"
+			if path != "" {
+				musicCh <- strings.Split(path, "\\.")[0] + ".mp3"
 				/*if musicCh <-strings.SplitAfter(path,"\\.")[0]+".mp3" {
 					_, _ = conn.Write([]byte("Added of Queue."))
 				}else {
 					_, _ = conn.Write([]byte("Queue is full."))
 				} */
 			} else {
-				var cmdPy = exec.Command("python " + "C:/Users/626ca/PycharmProjects/tubedoeloader/download.py " + url)
 				fmt.Println("now downloading...")
-				_ = cmdPy.Start()
-				_ = cmdPy.Wait()
+				var cmdPy = exec.Command("python", "C:/Users/626ca/PycharmProjects/tubedoeloader/download.py ", url, "5s")
+				out, err := cmdPy.Output()
+				if err != nil {
+					fmt.Println(err)
+					fmt.Println(string(out))
+				}
 				fmt.Println("download completed")
 
 				path = getPath(url)
-				cmd := "ffmpeg -i \"" + path + "\" \"" + strings.SplitAfter(path, "\\.")[0] + ".mp3\""
-				_ = exec.Command(cmd).Run()
-				paths := strings.SplitAfter(path, "\\.")[0] + ".mp3"
+				out, err = exec.Command("ffmpeg", "-i", "\""+path+".mp4\"", "\""+path+".mp3\"").Output()
+				if err != nil {
+					fmt.Println(err)
+					fmt.Println(string(out))
+				}
+
+				var paths = strings.Split(path, ".")[0] + ".mp3"
 				musicCh <- paths
 				/* if musicCh <- paths {
 					_, _ = conn.Write([]byte("Added of Queue."))
@@ -96,39 +105,42 @@ func ListenClient(conn net.Conn) {
 }
 
 func getPath(url string) (str string) {
-	var line, err1 = os.OpenFile(links, os.O_RDONLY, 0666)
+	var line, err1 = os.OpenFile(links, os.O_RDWR, 0666)
 	if err1 != nil {
 		fmt.Println("Dial error3:", err1)
 		panic(err1)
 	}
+	defer line.Close()
 	scanner := bufio.NewScanner(line)
 	if err2 := scanner.Err(); err2 != nil {
 		fmt.Println("Dial error4:", err2)
 		panic(err2)
 	}
 	var path string
-	defer line.Close()
 	for scanner.Scan() {
-		tmp := strings.SplitAfter(scanner.Text(), "&,")[0]
-		if tmp == url {
+		tmp := strings.Split(scanner.Text(), ",")
+		if tmp[0] == url {
 			fmt.Println("hit.")
-			path = strings.SplitAfter(links, ",")[1]
-			path = "D:/go.wk/SocketServer/MusicHolder/" + path
+			path = tmp[1]
+			path = "D:/go.wk/SocketServer/MusicHolder/" + strings.Split(path, ".")[0]
 			return path
 		}
 	}
-	path = ""
-	return path
+	return ""
 }
 
 func PlayMusicLoop() {
 	for {
 		path := <-musicCh
-		PlayMusicPyWrapper(strings.Split(path, "\\.")[0] + ".mp3")
+		PlayMusicPyWrapper(strings.Split(path, ".")[0] + ".mp3")
 	}
 }
 
 //PlayMusicPyWrapper
 func PlayMusicPyWrapper(path string) {
-	_ = exec.Command("python C:/Users/626ca/PycharmProjects/music_player/play_music.py " + path).Run()
+	out, err := exec.Command("python", "C:/Users/626ca/PycharmProjects/music_player/play_music.py", path, "5s").Output()
+	if err != nil {
+		fmt.Println(err)
+		fmt.Println(string(out))
+	}
 }

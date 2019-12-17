@@ -10,7 +10,7 @@ import (
 )
 
 var musicCh = make(chan string)
-var links = "D:/go.wk/SocketServer/MusicHolder/links.txt"
+var links = "D:/go.wk/SocketServer/main/links.txt"
 
 func main() {
 
@@ -70,11 +70,11 @@ func ListenClient(conn net.Conn) {
 			path := getPath(url)
 			if path != "" {
 				musicCh <- strings.Split(path, "\\.")[0] + ".mp3"
-				/*if musicCh <-strings.SplitAfter(path,"\\.")[0]+".mp3" {
+				if musicCh <-strings.Split(path,"\\.")[0]+".mp3" {
 					_, _ = conn.Write([]byte("Added of Queue."))
 				}else {
 					_, _ = conn.Write([]byte("Queue is full."))
-				} */
+				}
 			} else {
 				fmt.Println("now downloading...")
 				var cmdPy = exec.Command("python", "C:/Users/626ca/PycharmProjects/tubedoeloader/download.py ", url, "5s")
@@ -86,19 +86,25 @@ func ListenClient(conn net.Conn) {
 				fmt.Println("download completed")
 
 				path = getPath(url)
-				out, err = exec.Command("ffmpeg", "-i", "\""+path+".mp4\"", "\""+path+".mp3\"").Output()
+				var cmd = exec.Command("python", "C:/Users/626ca/PycharmProjects/ffmpegexec.ffmpegexec.py", path, "5s")
+				out1, err := cmd.Output()
+				if err!=nil{
+					fmt.Println("Dial error:", err)
+					fmt.Println(string(out1))
+				}
+				/*out, err = exec.Command("ffmpeg", "-i", "\""+path+".mp4\"", "\""+path+".mp3\"").Output()
 				if err != nil {
 					fmt.Println(err)
 					fmt.Println(string(out))
-				}
+				}*/
 
 				var paths = strings.Split(path, ".")[0] + ".mp3"
 				musicCh <- paths
-				/* if musicCh <- paths {
+				if musicCh <- paths {
 					_, _ = conn.Write([]byte("Added of Queue."))
 				}else {
 					_, _ = conn.Write([]byte("Queue is full."))
-				} */
+				}
 			}
 		}
 	}
@@ -136,7 +142,6 @@ func PlayMusicLoop() {
 	}
 }
 
-//PlayMusicPyWrapper
 func PlayMusicPyWrapper(path string) {
 	out, err := exec.Command("python", "C:/Users/626ca/PycharmProjects/music_player/play_music.py", path, "5s").Output()
 	if err != nil {

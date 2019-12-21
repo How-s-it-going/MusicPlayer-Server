@@ -3,10 +3,14 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/faiface/beep"
+	"github.com/faiface/beep/mp3"
+	"github.com/faiface/beep/speaker"
 	"net"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 var musicCh = make(chan string)
@@ -54,8 +58,9 @@ func ListenClient(conn net.Conn) {
 		line1 := strings.Replace(line, "\n", "", -1)
 		line1 = strings.Replace(line1, "\r", "", -1)
 		fmt.Println(line1)
-		_, _ = conn.Write(messageBuf)
+
 		if strings.HasPrefix(line1, "/bye") {
+			fmt.Println("Disconnection client")
 			return
 		}
 
@@ -64,7 +69,6 @@ func ListenClient(conn net.Conn) {
 			fmt.Println(url)
 
 			message := string(messageBuf[:messageLen])
-
 			_, _ = conn.Write([]byte(message))
 
 			path := getPath(url)
@@ -75,7 +79,7 @@ func ListenClient(conn net.Conn) {
 				var cmdPy = exec.Command("python", "C:/Users/626ca/PycharmProjects/tubedoeloader/download.py ", url, "5s")
 				out, err := cmdPy.Output()
 				if err != nil {
-					fmt.Println(err)
+					fmt.Println("Dial error6:", err)
 					fmt.Println(string(out))
 				}
 				fmt.Println("download completed")
@@ -85,6 +89,18 @@ func ListenClient(conn net.Conn) {
 				var paths = strings.Split(path, ".")[0] + ".mp3"
 				musicCh <- paths
 			}
+		}
+
+		if strings.HasPrefix(line1, "/stop") {
+			message := string(messageBuf[:messageLen])
+			_, _ = conn.Write([]byte(message))
+			speaker.Clear()
+		}
+
+		if strings.HasPrefix(line1, "/skip") {
+			message := string(messageBuf[:messageLen])
+			_, _ = conn.Write([]byte(message))
+			speaker.Close()
 		}
 	}
 }
@@ -115,16 +131,37 @@ func getPath(url string) (str string) {
 }
 
 func PlayMusicLoop() {
+
 	for {
 		path := <-musicCh
+
 		PlayMusicPyWrapper(strings.Split(path, ".")[0] + ".mp3")
+		path = ""
 	}
 }
 
 func PlayMusicPyWrapper(path string) {
-	out, err := exec.Command("python", "C:/Users/626ca/PycharmProjects/music_player/play_music.py", path, "5s").Output()
+
+	mp3file, _ := os.Open(path)
+	s, format, err := mp3.Decode(mp3file)
+	if err != nil {
+		fmt.Println("Dial error7:", err)
+		panic(err)
+	}
+	err = speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+	if err != nil {
+		fmt.Println("Dial error8:", err)
+		panic(err)
+	}
+	done := make(chan struct{})
+	speaker.Play(beep.Seq(s, beep.Callback(func() {
+		close(done)
+	})))
+	_ = <-done
+
+	/*out, err := exec.Command("python", "C:/Users/626ca/PycharmProjects/music_player/play_music.py", path, "5s").Output()
 	if err != nil {
 		fmt.Println(err)
 		fmt.Println(string(out))
-	}
+	}*/
 }

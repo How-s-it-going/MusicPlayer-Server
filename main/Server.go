@@ -13,7 +13,9 @@ import (
 	"time"
 )
 
-var musicCh = make(chan string)
+var musicCh = make(chan string, 20)
+var done = make(chan bool)
+var isSkip = make(chan bool)
 var links = "D:/goWork/SocketServer/main/links.txt"
 
 func main() {
@@ -47,8 +49,10 @@ func main() {
 func ListenClient(conn net.Conn) {
 	defer conn.Close()
 	var line string
-	messageBuf := make([]byte, 1024)
+	var messageBuf []byte
+	var message string
 	for {
+		messageBuf = make([]byte, 1024)
 		messageLen, err := conn.Read(messageBuf)
 		if err != nil {
 			fmt.Println("Dial error2:", err)
@@ -68,7 +72,7 @@ func ListenClient(conn net.Conn) {
 			var url = strings.Split(line1, " ")[1]
 			fmt.Println(url)
 
-			message := string(messageBuf[:messageLen])
+			message = string(messageBuf[:messageLen])
 			_, _ = conn.Write([]byte(message))
 
 			path := getPath(url)
@@ -91,16 +95,20 @@ func ListenClient(conn net.Conn) {
 			}
 		}
 
-		if strings.HasPrefix(line1, "/stop") {
-			message := string(messageBuf[:messageLen])
+		if strings.HasPrefix(line1, "/skip") {
+			message = string(messageBuf[:messageLen])
 			_, _ = conn.Write([]byte(message))
-			speaker.Clear()
+			isSkip <- true
 		}
 
-		if strings.HasPrefix(line1, "/skip") {
-			message := string(messageBuf[:messageLen])
-			_, _ = conn.Write([]byte(message))
-			speaker.Close()
+		if strings.HasPrefix(line1, "/list") {
+			if musicCh != nil {
+				for range musicCh {
+					fmt.Println()
+				}
+			} else {
+				fmt.Println("musicCh is null.")
+			}
 		}
 	}
 }
@@ -134,9 +142,7 @@ func PlayMusicLoop() {
 
 	for {
 		path := <-musicCh
-
 		PlayMusicPyWrapper(strings.Split(path, ".")[0] + ".mp3")
-		path = ""
 	}
 }
 
@@ -153,11 +159,10 @@ func PlayMusicPyWrapper(path string) {
 		fmt.Println("Dial error8:", err)
 		panic(err)
 	}
-	done := make(chan struct{})
 	speaker.Play(beep.Seq(s, beep.Callback(func() {
-		close(done)
+		done <- true
 	})))
-	_ = <-done
+	<-done
 
 	/*out, err := exec.Command("python", "C:/Users/626ca/PycharmProjects/music_player/play_music.py", path, "5s").Output()
 	if err != nil {
